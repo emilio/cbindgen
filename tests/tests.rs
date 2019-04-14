@@ -3,9 +3,10 @@ extern crate cbindgen;
 use std::path::{Path, PathBuf};
 use cbindgen::*;
 use std::{env, fs};
+use std::process::Command;
 
 fn run_cbindgen(path: &Path, output: &Path, language: Language, style: Option<Style>) {
-    use std::process::Command;
+
 
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     {
@@ -36,43 +37,55 @@ fn run_cbindgen(path: &Path, output: &Path, language: Language, style: Option<St
             },
         }
         command.arg("-o").arg(output);
+
         // TODO verify
-        // TODO config
+
+        let mut config = path.clone().to_path_buf();
+        config.set_extension("toml");
+        if config.exists() {
+            command.arg("--config").arg(config);
+        }
+
         command.arg(path);
         command.output()
             .expect("failed to execute process");
 
-        {
-            let cc = match env::var("CC") {
-                Ok(val) => {val},
-                Err(_) => {
-                    match language {
-                        Language::Cxx => { "g++".to_string() },
-                        Language::C => { "gcc".to_string() },
-                    }
-                },
-            };
+        compile(output, language);
 
-            let mut object = output.to_path_buf();
-            object.set_extension("o");
-
-            let mut command = Command::new(cc);
-            command.arg("-D").arg("DEFINED");
-            command.arg("-c").arg(output);
-            command.arg("-o").arg(&object);
-
-            command.output()
-                .expect("failed to compile");
-
-            if object.exists() {
-                fs::remove_file(object).unwrap();
-            }
-        }
         if output.exists() {
             fs::remove_file(output).unwrap();
         }
     }
 
+}
+
+fn compile(output: &Path, language: Language) {
+    {
+        let cc = match env::var("CC") {
+            Ok(val) => { val },
+            Err(_) => {
+                match language {
+                    Language::Cxx => { "g++".to_string() },
+                    Language::C => { "gcc".to_string() },
+                }
+            },
+        };
+
+        let mut object = output.to_path_buf();
+        object.set_extension("o");
+
+        let mut command = Command::new(cc);
+        command.arg("-D").arg("DEFINED");
+        command.arg("-c").arg(output);
+        command.arg("-o").arg(&object);
+
+        command.output()
+            .expect("failed to compile");
+
+        if object.exists() {
+            fs::remove_file(object).unwrap();
+        }
+    }
 }
 
 fn run_compile_test(name: &'static str, path: &Path, language: Language, style: Option<Style>) {
