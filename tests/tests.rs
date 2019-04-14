@@ -43,10 +43,16 @@ fn run_cbindgen(path: &Path, output: &Path, language: Language, style: Option<St
         }
 
         command.arg(path);
-        command.output()
+        let out = command.output()
             .expect("failed to execute process");
 
         compile(output, language);
+
+//        println!("status: {}", out.status);
+//        io::stdout().write_all(&out.stdout).unwrap();
+//        io::stderr().write_all(&out.stderr).unwrap();
+
+        assert!(std::process::ExitStatus::success(&out.status));
 
         if output.exists() {
             fs::remove_file(output).unwrap();
@@ -75,8 +81,10 @@ fn compile(output: &Path, language: Language) {
         command.arg("-c").arg(output);
         command.arg("-o").arg(&object);
 
-        command.output()
+        let out = command.output()
             .expect("failed to compile");
+
+        assert!(std::process::ExitStatus::success(&out.status));
 
         if object.exists() {
             fs::remove_file(object).unwrap();
