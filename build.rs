@@ -1,3 +1,5 @@
+use std::fs::FileType;
+
 fn generate_tests() {
     use std::env;
     use std::path::{Path, PathBuf};
@@ -18,25 +20,42 @@ fn generate_tests() {
     println!("cargo:rerun-if-changed={}", tests_dir.display());
 
     for entry in entries {
-        // TODO(emilio): handle directories.
-        match entry.path().extension().and_then(OsStr::to_str) {
-            Some("rs") => {},
-            _ => continue,
-        };
+        if entry.file_type().unwrap().is_file() {
+            // TODO(emilio): handle directories.
+            match entry.path().extension().and_then(OsStr::to_str) {
+                Some("rs") => {},
+                _ => continue,
+            };
 
-        let identifier = entry
-            .file_name()
-            .to_str()
-            .unwrap()
-            .replace(|c| !char::is_alphanumeric(c), "_")
-            .replace("__", "_")
-            .to_lowercase();
-        writeln!(
-            dst,
-            "test_file!({}, {:?});",
-            identifier,
-            entry.path(),
-        ).unwrap();
+            let identifier = entry
+                .path().file_stem().unwrap().to_os_string()
+                .to_str()
+                .unwrap()
+                .replace(|c| !char::is_alphanumeric(c), "_")
+                .replace("__", "_")
+                .to_lowercase();
+            writeln!(
+                dst,
+                "test_file!(test_{}, {:?});",
+                identifier,
+                entry.path(),
+            ).unwrap();
+
+        } else {
+            let identifier = entry
+                .file_name()
+                .to_str()
+                .unwrap()
+                .replace(|c| !char::is_alphanumeric(c), "_")
+                .replace("__", "_")
+                .to_lowercase();
+            writeln!(
+                dst,
+                "test_dir!(crate_{}, {:?});",
+                identifier,
+                entry.path(),
+            ).unwrap();
+        }
     }
 
     dst.flush().unwrap();
