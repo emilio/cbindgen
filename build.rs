@@ -19,42 +19,35 @@ fn generate_tests() {
     println!("cargo:rerun-if-changed={}", tests_dir.display());
 
     for entry in entries {
-        if entry.file_type().unwrap().is_file() {
-            // TODO(emilio): handle directories.
+        let identifier = if entry.file_type().unwrap().is_file() {
             match entry.path().extension().and_then(OsStr::to_str) {
                 Some("rs") => {},
                 _ => continue,
             };
 
-            let identifier = entry
+            entry
                 .path().file_stem().unwrap().to_os_string()
                 .to_str()
                 .unwrap()
                 .replace(|c| !char::is_alphanumeric(c), "_")
                 .replace("__", "_")
-                .to_lowercase();
-            writeln!(
-                dst,
-                "test_file!(test_{}, {:?});",
-                identifier,
-                entry.path(),
-            ).unwrap();
-
+                .to_lowercase()
         } else {
-            let identifier = entry
+            entry
                 .file_name()
                 .to_str()
                 .unwrap()
                 .replace(|c| !char::is_alphanumeric(c), "_")
                 .replace("__", "_")
-                .to_lowercase();
-            writeln!(
-                dst,
-                "test_dir!(crate_{}, {:?});",
-                identifier,
-                entry.path(),
-            ).unwrap();
-        }
+                .to_lowercase()
+        };
+        writeln!(
+            dst,
+            "test_file!(test_{}, {:?});",
+            identifier,
+            entry.path(),
+        ).unwrap();
+
     }
 
     dst.flush().unwrap();
