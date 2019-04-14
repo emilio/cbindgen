@@ -1,4 +1,3 @@
-use std::fs::FileType;
 
 fn generate_tests() {
     use std::env;
