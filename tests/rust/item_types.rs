@@ -10,3 +10,5 @@ pub enum OnlyThisShouldBeGenerated {
     Foo,
     Bar,
 }
+
+pub const WELL_THIS_TOO: u8 = 4;
