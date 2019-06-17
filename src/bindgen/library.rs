@@ -67,64 +67,57 @@ impl Library {
         self.rename_items();
 
         let mut dependencies = Dependencies::new();
-        let explicit_include = !self.config.export.include.is_empty();
 
-        if !explicit_include {
-            for function in &self.functions {
-                function.add_dependencies(&self, &mut dependencies);
-            }
-            self.globals.for_all_items(|global| {
-                global.add_dependencies(&self, &mut dependencies);
-            });
-            self.constants.for_all_items(|constant| {
-                constant.add_dependencies(&self, &mut dependencies);
-            });
+        for function in &self.functions {
+            function.add_dependencies(&self, &mut dependencies);
         }
+        self.globals.for_all_items(|global| {
+            global.add_dependencies(&self, &mut dependencies);
+        });
+        self.constants.for_all_items(|constant| {
+            constant.add_dependencies(&self, &mut dependencies);
+        });
 
         for name in &self.config.export.include {
             let path = Path::new(name.clone());
-            let items = self.get_items(&path);
-            if !dependencies.items.insert(path) {
-                continue;
-            }
-            let items = match items {
-                Some(items) => items,
-                None => continue,
-            };
-            for item in &items {
-                item.deref().add_dependencies(&self, &mut dependencies);
-            }
-            for item in items {
-                dependencies.order.push(item);
+            if let Some(items) = self.get_items(&path) {
+                if dependencies.items.insert(path) {
+                    for item in &items {
+                        item.deref().add_dependencies(&self, &mut dependencies);
+                    }
+                    for item in items {
+                        dependencies.order.push(item);
+                    }
+                }
             }
         }
 
         dependencies.sort();
 
-        macro_rules! filter_as_neeeded {
-            ($items:expr, $item_type:ident) => {
-                if self.config.export.should_generate(ItemType::$item_type) {
-                    let items = $items;
-                    if explicit_include {
-                        items.into_iter().filter(|item| dependencies.items.contains(item.path())).collect()
-                    } else {
-                        items
-                    }
-                } else {
-                    vec![]
-                }
-            }
+        let items = dependencies.order;
+        let constants = if self.config.export.should_generate(ItemType::Constants) {
+            self.constants.to_vec()
+        } else {
+            vec![]
         };
-        let constants = filter_as_neeeded!(self.constants.to_vec(), Constants);
-        let globals = filter_as_neeeded!(self.globals.to_vec(), Globals);
-        let functions = filter_as_neeeded!(mem::replace(&mut self.functions, vec![]), Functions);
+
+        let globals = if self.config.export.should_generate(ItemType::Globals) {
+            self.globals.to_vec()
+        } else {
+            vec![]
+        };
+        let functions = if self.config.export.should_generate(ItemType::Functions) {
+            mem::replace(&mut self.functions, vec![])
+        } else {
+            vec![]
+        };
 
         Ok(Bindings::new(
             self.config,
             self.structs,
             constants,
             globals,
-            dependencies.order,
+            items,
             functions,
         ))
     }
